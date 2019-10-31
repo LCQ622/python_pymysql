@@ -1,5 +1,13 @@
 # encoding=utf-8
 # 基于pymysql的数据库访问层
+# Date： 2019-10-31
+# Version： 1.1
+# 新增功能：
+#       1.新增更新数据方法upadte_data()
+#       2.新增判断如果是 int 、complex 、float 类型的数据再拼接SQL语句时将不会添加引号
+# 已知bug:
+#       1.未测试异常情况
+#       2.未做异常处理
 import os
 import pymysql
 import configparser
@@ -42,11 +50,7 @@ def config():
         print("请先对当前目录下db.ini文件进行配置")
         return False
 
-
 cf = config()
-
-
-
 
 def get_connect():
     '''
@@ -67,7 +71,7 @@ def get_data(**kwargs):
     cursor=conn.cursor()
     sql = f"select * from {cf['table']} where 1=1"
     for i in kwargs:
-        if type(kwargs[i])==int:
+        if type(kwargs[i])==int or type(kwargs[i])==complex or type(kwargs[i])==float:
             sql=sql+f" and {i}={kwargs[i]}"
         else :
             sql = sql + f" and {i}='{kwargs[i]}'"
@@ -96,7 +100,7 @@ def add_data(*args,**kwargs):
             # 删除最后一个字符
             sql = sql[:-1]+") VALUES ("
             for j in kwargs:
-                if type(kwargs[j]) == int:
+                if type(kwargs[j]) == int or type(kwargs[j])==complex or type(kwargs[j])== float:
                     sql=sql+f"{kwargs[j]},"
                 else:
                     sql = sql + f"'{kwargs[j]}',"
@@ -127,7 +131,7 @@ def delete_data(*args,**kwargs):
             cursor = conn.cursor()
             sql = f"DELETE FROM {cf['table']} WHERE 1=1 "
             for i in kwargs:
-                if type(kwargs[i])==int:
+                if type(kwargs[i])==int or type(kwargs[i])==complex or type(kwargs[i])==float:
                     sql = sql + f" AND {i}={kwargs[i]}"
                 else:
                     sql=sql+f" AND {i}='{kwargs[i]}'"
@@ -157,5 +161,39 @@ def clear_table_data():
 
 
 
-# clear_table_data()
+
+def upadte_data(old_data,new_data):
+    '''
+    该方法用于更新数据操作
+    :param old_data:  传参请参考upadte_data(dict(id=1),dict(name="傻强",job="打工仔",salary=2500))
+    :param new_data:
+    :return: 成功返回True
+    '''
+    if type(old_data)==dict and type(new_data)==dict:
+        if old_data!={} and new_data!={}:
+            sql=f"UPDATE {cf['table']} SET "
+            for i in new_data:
+                # 如果是 int 、complex 、float 类型的数据将不会添加引号
+                if type(new_data[i])==int or  type(new_data[i])==complex or  type(new_data[i])==float:
+                    sql=sql+f"{i}={new_data[i]},"
+                else:
+                    sql = sql + f"{i}='{new_data[i]}',"
+            sql=sql[:-1]+" WHERE 1=1"
+            for j in old_data:
+                #如果是 int 、complex 、float 类型的数据将不会添加引号
+                if type(old_data[j])==int or type(old_data[j])==complex or type(old_data[j])==float:
+                    sql=sql+f" AND {j}={old_data[j]}"
+                else:
+                    sql = sql + f" AND {j}='{old_data[j]}'"
+            conn = get_connect()
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            row=cursor.rowcount
+            conn.commit()
+            conn.close()
+            return  True if row>0 else False
+        else:
+            print("传入的字典不能为空")
+    else:
+        print("数据类型不正确，请传入字典类型的数据！")
 
