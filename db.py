@@ -1,13 +1,15 @@
 # encoding=utf-8
 # 基于pymysql的数据库访问层
-# Date： 2019-10-31
-# Version： 1.1
+# Date： 2019-11-11
+# Version： 1.2
 # 新增功能：
-#       1.新增更新数据方法upadte_data()
-#       2.新增判断如果是 int 、complex 、float 类型的数据再拼接SQL语句时将不会添加引号
+#       1.新增限制符合条件返回的行数功能
+#       2.SQL语句拼接使用字符串格式化方法" ".format()兼容旧版本
 # 已知bug:
 #       1.未测试异常情况
 #       2.未做异常处理
+
+
 import os
 import pymysql
 import configparser
@@ -43,7 +45,6 @@ def config():
         cf.set("mysql", "db", "要连接的库")
         cf.set("mysql", "table", "要进行配置的表")
         cf.set("mysql", "charset", "utf8")
-
         cf.set("mysql", "check", "配置完成请务必删除我这一行！")
         with open("db.ini", "w+") as f:
             cf.write(f)
@@ -60,21 +61,29 @@ def get_connect():
     conn =pymysql.connect(host=cf['host'],port=cf['port'],user=cf['user'],password=cf['password'],charset=cf['charset'],db=cf['db'])
     return conn
 
-def get_data(**kwargs):
+
+def get_data(row=1000,**kwargs):
     '''
     该方法用于获取数据
-    传参 get_data(id=2,name="abc")
-    :param kwargs:
+    Version 1.2
+    更新内容：
+            1.新增限制符合条件返回的行数功能
+            2.SQL语句拼接使用字符串格式化方法" ".format()兼容旧版本
+    传参实例：
+            result=get_data(row=2000,id=2,name="abc")
+    :param row:  限制符合条件返回的行数，默认为1000行
+    :param kwargs: 要查询的条件
     :return: 返回查询到的数据
     '''
     conn=get_connect()
     cursor=conn.cursor()
-    sql = f"select * from {cf['table']} where 1=1"
+    sql = "SELECT * FROM {0} WHERE 1=1".format(cf['table'])
     for i in kwargs:
         if type(kwargs[i])==int or type(kwargs[i])==complex or type(kwargs[i])==float:
-            sql=sql+f" and {i}={kwargs[i]}"
+            sql=sql+" AND {0}={1}".format(i,kwargs[i])
         else :
-            sql = sql + f" and {i}='{kwargs[i]}'"
+            sql = sql + " AND {0}='{1}'".format(i,kwargs[i])
+    sql = sql + " LIMIT 0,{0}".format(row)
     cursor.execute(sql)
     data=cursor.fetchall()
     conn.close()
@@ -83,8 +92,11 @@ def get_data(**kwargs):
 def add_data(*args,**kwargs):
     '''
     该方法用于添加数据
+    Version 1.2
+    更新内容：
+            1.SQL语句拼接使用字符串格式化方法" ".format()兼容旧版本
     :param kwargs:  传参：add_data(id=1,name="abc")
-    :return:
+    :return: 添加成功返回True 反之则返回False
     '''
 
     if args!=():
@@ -94,16 +106,16 @@ def add_data(*args,**kwargs):
         if kwargs!={}:
             conn = get_connect()
             cursor = conn.cursor()
-            sql = f"INSERT INTO {cf['table']} ("
+            sql = "INSERT INTO {0} (".format(cf['table'])
             for i in kwargs:
-                sql = sql + f"{i},"
+                sql = sql + "{0},".format(i)
             # 删除最后一个字符
             sql = sql[:-1]+") VALUES ("
             for j in kwargs:
                 if type(kwargs[j]) == int or type(kwargs[j])==complex or type(kwargs[j])== float:
-                    sql=sql+f"{kwargs[j]},"
+                    sql=sql+"{0},".format(kwargs[j])
                 else:
-                    sql = sql + f"'{kwargs[j]}',"
+                    sql = sql + "'{0}',".format(kwargs[j])
             sql = sql[:-1] + ")"
             cursor.execute(sql)
             row=cursor.rowcount
@@ -118,9 +130,13 @@ def add_data(*args,**kwargs):
 def delete_data(*args,**kwargs):
     '''
     删除指定条件的数据
+    传参示例：delete_data(id=1,name="abc")
+    Version 1.2
+    更新内容：
+            1.SQL语句拼接使用字符串格式化方法" ".format()兼容旧版本
     :param args: 不能传参
-    :param kwargs:  delete_data(id=1,name="abc")
-    :return:
+    :param kwargs:  要删除的条件
+    :return: 删除成功返回True 反之则返回False
     '''
     if args != ():
         print("参数传递有误！！！")
@@ -129,12 +145,12 @@ def delete_data(*args,**kwargs):
         if kwargs != {}:
             conn = get_connect()
             cursor = conn.cursor()
-            sql = f"DELETE FROM {cf['table']} WHERE 1=1 "
+            sql = "DELETE FROM {0} WHERE 1=1 ".format(cf['table'])
             for i in kwargs:
                 if type(kwargs[i])==int or type(kwargs[i])==complex or type(kwargs[i])==float:
-                    sql = sql + f" AND {i}={kwargs[i]}"
+                    sql = sql + " AND {0}={1}".format(i,kwargs[i])
                 else:
-                    sql=sql+f" AND {i}='{kwargs[i]}'"
+                    sql=sql+" AND {0}='{1}'".format(i,kwargs[i])
             cursor.execute(sql)
             row = cursor.rowcount
             conn.commit()
@@ -148,12 +164,17 @@ def delete_data(*args,**kwargs):
 
 def clear_table_data():
     '''
-    清空表的内容，注意这将是毁灭性的，请谨慎操作
+    清空表的内容
+    注意这将是毁灭性的，请谨慎操作!!!
+    Version 1.2
+    更新内容：
+            1.SQL语句拼接使用字符串格式化方法" ".format()兼容旧版本
+
     :return:
     '''
     conn = get_connect()
     cursor = conn.cursor()
-    sql = f" TRUNCATE TABLE {cf['table']} "
+    sql = " TRUNCATE TABLE {0} ".format(cf['table'])
     cursor.execute(sql)
     conn.commit()
     conn.close()
@@ -165,26 +186,31 @@ def clear_table_data():
 def upadte_data(old_data,new_data):
     '''
     该方法用于更新数据操作
-    :param old_data:  传参请参考upadte_data(dict(id=1),dict(name="傻强",job="打工仔",salary=2500))
-    :param new_data:
-    :return: 成功返回True
+    传参示例:
+    upadte_data(dict(id=1),dict(name="傻强",job="打工仔",salary=2500))
+    Version 1.2
+    更新内容：
+            1.SQL语句拼接使用字符串格式化方法" ".format()兼容旧版本
+    :param old_data: 旧数据作为条件，以字典的方式传参
+    :param new_data: 旧数据以字典的方式传参
+    :return:  更新成功返回True 反之则返回False
     '''
     if type(old_data)==dict and type(new_data)==dict:
         if old_data!={} and new_data!={}:
-            sql=f"UPDATE {cf['table']} SET "
+            sql="UPDATE {0} SET ".format(cf['table'])
             for i in new_data:
                 # 如果是 int 、complex 、float 类型的数据将不会添加引号
                 if type(new_data[i])==int or  type(new_data[i])==complex or  type(new_data[i])==float:
-                    sql=sql+f"{i}={new_data[i]},"
+                    sql=sql+"{0}={1},".format(i,new_data[i])
                 else:
-                    sql = sql + f"{i}='{new_data[i]}',"
+                    sql = sql + "{0}='{1}',".format(i,new_data[i])
             sql=sql[:-1]+" WHERE 1=1"
             for j in old_data:
                 #如果是 int 、complex 、float 类型的数据将不会添加引号
                 if type(old_data[j])==int or type(old_data[j])==complex or type(old_data[j])==float:
-                    sql=sql+f" AND {j}={old_data[j]}"
+                    sql=sql+" AND {0}={1}".format(j,old_data[j])
                 else:
-                    sql = sql + f" AND {j}='{old_data[j]}'"
+                    sql = sql + " AND {0}='{1}'".format(j,old_data[j])
             conn = get_connect()
             cursor = conn.cursor()
             cursor.execute(sql)
