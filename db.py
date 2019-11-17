@@ -1,13 +1,15 @@
 # encoding=utf-8
 # 基于pymysql的数据库访问层
-# Date： 2019-11-11
-# Version： 1.2
+# Date： 2019-11-17
+# Version： 1.3
 # 新增功能：
-#       1.新增限制符合条件返回的行数功能
-#       2.SQL语句拼接使用字符串格式化方法" ".format()兼容旧版本
+#       1.get_all_databases()       获取当前连接的所有库名
+#       2.get_tables(database_name) 获取指定数据库的所有表名
+#       3.get_columns(table_name)   该方法用于获取指定表中所有字段的名称
 # 已知bug:
 #       1.未测试异常情况
 #       2.未做异常处理
+#       3.未做数据库数据表灵活功能切换
 
 
 import os
@@ -223,3 +225,56 @@ def upadte_data(old_data,new_data):
     else:
         print("数据类型不正确，请传入字典类型的数据！")
 
+
+
+def get_all_databases():
+    '''
+    该方法用于获取该服务器所有库的名称
+    Version 1.0
+    :return:返回包含所有库名称的列表
+    '''
+    conn = get_connect()
+    cursor = conn.cursor()
+    sql="SHOW DATABASES ;"
+    cursor.execute(sql)
+    data =list()
+    for i in  cursor.fetchall():
+        data.append(i[0])
+    conn.close()
+    return data
+
+def get_tables(database_name):
+    '''
+    该方法用于获取指定库中所有表的名称
+    Version 1.0
+    :param database_name: 指定库名称
+    :return: 返回包含指定库中所有表名称的列表
+    '''
+    conn = get_connect()
+    cursor = conn.cursor()
+    sql1=" USE {0} ;".format(database_name)
+    sql2="SHOW TABLES ;"
+    cursor.execute(sql1)
+    cursor.execute(sql2)
+    data =list()
+    for i in  cursor.fetchall():
+        data.append(i[0])
+    conn.close()
+    return data
+
+def get_columns(table_name):
+    '''
+    该方法用于获取指定表中所有字段的名称
+    Version 1.0
+    :param table_name: 表名称
+    :return: 返回包含指定表中所有字段的列表
+    '''
+    conn = get_connect()
+    cursor = conn.cursor()
+    sql1="SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE table_name = '{0}';".format(table_name)
+    cursor.execute(sql1)
+    data =list()
+    for i in  cursor.fetchall():
+        data.append(i[0])
+    conn.close()
+    return data
