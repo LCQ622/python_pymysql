@@ -1,11 +1,10 @@
 # encoding=utf-8
 # 基于pymysql的数据库访问层
-# Date： 2019-11-17
-# Version： 1.3
+# Date： 2019-11-18
+# Version： 1.4
 # 新增功能：
-#       1.get_all_databases()       获取当前连接的所有库名
-#       2.get_tables(database_name) 获取指定数据库的所有表名
-#       3.get_columns(table_name)   该方法用于获取指定表中所有字段的名称
+#       1.get_connect()支持指定数据库
+#       2.get_data() 新增指定数据库功能、指定数据表功能、新增返回指定字段功能
 # 已知bug:
 #       1.未测试异常情况
 #       2.未做异常处理
@@ -55,37 +54,54 @@ def config():
 
 cf = config()
 
-def get_connect():
+def get_connect(database=cf['db']):
     '''
     该方法用于获取数据库连接
-    :return:
+    Version 1.1
+    更新内容：
+                     1.新增获取指定数据库的连接
+    :param database: 获取指定数据库的连接，默认为配置文件中的数据库
+    :return:         数据库连接
     '''
-    conn =pymysql.connect(host=cf['host'],port=cf['port'],user=cf['user'],password=cf['password'],charset=cf['charset'],db=cf['db'])
+    conn =pymysql.connect(host=cf['host'],port=cf['port'],user=cf['user'],password=cf['password'],charset=cf['charset'],db=database)
     return conn
 
-
-def get_data(row=1000,**kwargs):
-    '''
+def get_data(database=cf['db'],table=cf['table'],column=1,row=1000,**kwargs):
+    """
     该方法用于获取数据
-    Version 1.2
+    Version 1.3
     更新内容：
-            1.新增限制符合条件返回的行数功能
-            2.SQL语句拼接使用字符串格式化方法" ".format()兼容旧版本
-    传参实例：
-            result=get_data(row=2000,id=2,name="abc")
-    :param row:  限制符合条件返回的行数，默认为1000行
-    :param kwargs: 要查询的条件
-    :return: 返回查询到的数据
-    '''
-    conn=get_connect()
+            1.新增指定数据库功能
+            2.新增指定数据表功能
+            3.新增返回指定字段功能
+
+    传参请参考：get_data(database="test",table="user",column=("id","name","gender"),row=10,gender="女")
+    :param database:    指定数据库，默认为配置文件中的数据库
+    :param table:       指定数据表，默认为配置文件中的数据表
+    :param column:      返回指定字段，默认返回所有字段
+    :param row:         限制返回行数，默认为1000行
+    :param kwargs:      查询条件,默认为查询所有，传参时必须在最后
+    :return:            查询到的数据
+    """
+    conn=get_connect(database)
     cursor=conn.cursor()
-    sql = "SELECT * FROM {0} WHERE 1=1".format(cf['table'])
+    sql = "SELECT "
+    if isinstance(column,list) or isinstance(column,tuple):
+        if  column  !=None or column !="":
+            for j in column:
+                sql+="{0},".format(j)
+            sql=sql[:-1]+" FROM "
+    elif isinstance(column,str):
+        sql += "{0} FROM ".format(column)
+    else:
+        sql="SELECT * FROM "
+    sql = sql+"{0} WHERE 1=1".format(table)
     for i in kwargs:
         if type(kwargs[i])==int or type(kwargs[i])==complex or type(kwargs[i])==float:
             sql=sql+" AND {0}={1}".format(i,kwargs[i])
         else :
             sql = sql + " AND {0}='{1}'".format(i,kwargs[i])
-    sql = sql + " LIMIT 0,{0}".format(row)
+    sql = sql + " LIMIT 0,{0} ".format(row)
     cursor.execute(sql)
     data=cursor.fetchall()
     conn.close()
