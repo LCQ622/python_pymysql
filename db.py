@@ -1,14 +1,16 @@
 # encoding=utf-8
 # 基于pymysql的数据库访问层
-# Date： 2019-11-18
-# Version： 1.4
+# Date: 2019-11-19
+# Version: 1.5
+# Author: LCQ
 # 新增功能：
-#       1.get_connect()支持指定数据库
-#       2.get_data() 新增指定数据库功能、指定数据表功能、新增返回指定字段功能
+#       1.add_data()            新增指定数据库功能、指定数据表功能
+#       2.delete_data()         新增指定数据库功能、指定数据表功能
+#       3.upadte_data()         新增指定数据库功能、指定数据表功能
+#       4.clear_table_data()    新增指定数据库功能、指定数据表功能
 # 已知bug:
 #       1.未测试异常情况
 #       2.未做异常处理
-#       3.未做数据库数据表灵活功能切换
 
 
 import os
@@ -107,24 +109,28 @@ def get_data(database=cf['db'],table=cf['table'],column=1,row=1000,**kwargs):
     conn.close()
     return data
 
-def add_data(*args,**kwargs):
+def add_data(database=cf["db"],table=cf["table"],*args,**kwargs):
     '''
     该方法用于添加数据
-    Version 1.2
+    Version 1.3
     更新内容：
-            1.SQL语句拼接使用字符串格式化方法" ".format()兼容旧版本
-    :param kwargs:  传参：add_data(id=1,name="abc")
-    :return: 添加成功返回True 反之则返回False
+            1.新增指定数据库功能
+            2.新增指定数据表功能
+    传参请参考：add_data(table="t1",database="demo",name="test1")
+    :param database:        指定数据库，默认为配置文件中的数据库
+    :param table:           指定数据表，默认为配置文件中的数据表
+    :param args:            不用传参，防止传入字段时导致错误。
+    :param kwargs:          要添加数据的字段和数据,传参时必须在最后
+    :return:                返回添加成功 boolean 值，成功True,失败False
     '''
-
     if args!=():
         print("参数传递有误！！！")
         return False
     else:
         if kwargs!={}:
-            conn = get_connect()
+            conn = get_connect(database=database)
             cursor = conn.cursor()
-            sql = "INSERT INTO {0} (".format(cf['table'])
+            sql = "INSERT INTO {0} (".format(table)
             for i in kwargs:
                 sql = sql + "{0},".format(i)
             # 删除最后一个字符
@@ -145,25 +151,28 @@ def add_data(*args,**kwargs):
             return False
 
 
-def delete_data(*args,**kwargs):
+def delete_data(database=cf["db"],table=cf["table"],*args,**kwargs):
     '''
     删除指定条件的数据
-    传参示例：delete_data(id=1,name="abc")
-    Version 1.2
+    Version 1.3
     更新内容：
-            1.SQL语句拼接使用字符串格式化方法" ".format()兼容旧版本
-    :param args: 不能传参
-    :param kwargs:  要删除的条件
-    :return: 删除成功返回True 反之则返回False
+            1.新增指定数据库功能
+            2.新增指定数据表功能
+    传参请参考：delete_data(table="t1",database="demo",id="1")
+    :param database:    指定数据库，默认为配置文件中的数据库
+    :param table:       指定数据表，默认为配置文件中的数据表
+    :param args:        不用传参，防止传入字段时导致错误
+    :param kwargs:      要删除数据的条件,传参时必须在最后
+    :return:            返回添加成功 boolean 值，成功True,失败False
     '''
     if args != ():
         print("参数传递有误！！！")
         return False
     else:
         if kwargs != {}:
-            conn = get_connect()
+            conn = get_connect(database=database)
             cursor = conn.cursor()
-            sql = "DELETE FROM {0} WHERE 1=1 ".format(cf['table'])
+            sql = "DELETE FROM {0} WHERE 1=1 ".format(table)
             for i in kwargs:
                 if type(kwargs[i])==int or type(kwargs[i])==complex or type(kwargs[i])==float:
                     sql = sql + " AND {0}={1}".format(i,kwargs[i])
@@ -180,19 +189,21 @@ def delete_data(*args,**kwargs):
 
 
 
-def clear_table_data():
+def clear_table_data(database=cf["db"],table=cf["table"]):
     '''
     清空表的内容
     注意这将是毁灭性的，请谨慎操作!!!
-    Version 1.2
+    Version 1.3
     更新内容：
-            1.SQL语句拼接使用字符串格式化方法" ".format()兼容旧版本
-
-    :return:
+            1.新增指定数据库功能
+            2.新增指定数据表功能
+    传参请参考：clear_table_data(table="t1",database="demo")
+    :param database:            指定数据库，默认为配置为配置文件中的数据库
+    :param table:               指定数据表，默认为配置为配置文件中的数据表
     '''
-    conn = get_connect()
+    conn = get_connect(database=database)
     cursor = conn.cursor()
-    sql = " TRUNCATE TABLE {0} ".format(cf['table'])
+    sql = " TRUNCATE TABLE {0} ".format(table)
     cursor.execute(sql)
     conn.commit()
     conn.close()
@@ -201,21 +212,26 @@ def clear_table_data():
 
 
 
-def upadte_data(old_data,new_data):
+def upadte_data(database=cf["db"],table=cf["table"],old_data={},new_data={}):
     '''
-    该方法用于更新数据操作
-    传参示例:
-    upadte_data(dict(id=1),dict(name="傻强",job="打工仔",salary=2500))
-    Version 1.2
+    该方法用于更新数据
+    Version 1.3
     更新内容：
-            1.SQL语句拼接使用字符串格式化方法" ".format()兼容旧版本
-    :param old_data: 旧数据作为条件，以字典的方式传参
-    :param new_data: 旧数据以字典的方式传参
-    :return:  更新成功返回True 反之则返回False
+            1.新增指定数据库功能
+            2.新增指定数据表功能
+    传参请参考：
+    将demo数据库下的t1表中id为1的数据的name字段更新为test
+    db.upadte_data(database="demo",table="t1",old_data=dict(id=1),new_data=dict(name="test"))
+    :param database:    指定数据库，默认为配置为配置文件中的数据库
+    :param table:       指定数据表，默认为配置为配置文件中的数据表
+    :param old_data:    要执行更新的旧条件
+    :param new_data:    要更新的新数据
+    :return:            更新成功返回True 反之则返回False
     '''
+
     if type(old_data)==dict and type(new_data)==dict:
         if old_data!={} and new_data!={}:
-            sql="UPDATE {0} SET ".format(cf['table'])
+            sql="UPDATE {0} SET ".format(table)
             for i in new_data:
                 # 如果是 int 、complex 、float 类型的数据将不会添加引号
                 if type(new_data[i])==int or  type(new_data[i])==complex or  type(new_data[i])==float:
@@ -229,7 +245,7 @@ def upadte_data(old_data,new_data):
                     sql=sql+" AND {0}={1}".format(j,old_data[j])
                 else:
                     sql = sql + " AND {0}='{1}'".format(j,old_data[j])
-            conn = get_connect()
+            conn = get_connect(database=database)
             cursor = conn.cursor()
             cursor.execute(sql)
             row=cursor.rowcount
